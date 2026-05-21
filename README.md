@@ -1,3 +1,7 @@
+# Note: Modified for Seeed Studio ESP32-C6 — uses the board's D6 (TX) and D7 (RX) pins, and
+# intended for use on a breadboard with level shifters/voltage dividers (not a PCB that
+# inverts UART signals).
+
 # Daikin S21 — Matter over Thread
 
 [![License: GPL v2](https://img.shields.io/badge/License-GPL_v2-blue.svg)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html)
