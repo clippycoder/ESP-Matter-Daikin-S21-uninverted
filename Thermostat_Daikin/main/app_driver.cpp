@@ -78,8 +78,8 @@ static uint8_t percent_to_s21_fan(uint8_t percent)
 // Global Temperature Storage
 int16_t g_current_temp_int = 2100; 
 
-#define S21_TX_PIN 21
-#define S21_RX_PIN 20
+#define S21_TX_PIN 16
+#define S21_RX_PIN 17
 #define BUTTON_GPIO_PIN 23
 
 #define FLOAT_TO_MATTER(x) ((int16_t)((x) * 100.0f))

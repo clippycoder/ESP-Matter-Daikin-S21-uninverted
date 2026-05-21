@@ -18,19 +18,28 @@ static portMUX_TYPE s_spinlock = portMUX_INITIALIZER_UNLOCKED;
 
 static void sw_write_byte(uint8_t byte) {
     taskENTER_CRITICAL(&s_spinlock);
-    gpio_set_level((gpio_num_t)s_tx_pin, 1);
+    
+    // Start Bit (Standard UART: LOW)
+    gpio_set_level((gpio_num_t)s_tx_pin, 0);
     esp_rom_delay_us(BIT_DELAY_US);
+    
     int ones = 0;
     for (int i = 0; i < 8; i++) {
         int bit = (byte >> i) & 0x01;
         if (bit) ones++;
-        gpio_set_level((gpio_num_t)s_tx_pin, bit ? 0 : 1); 
+        // Data Bits (Standard Logic)
+        gpio_set_level((gpio_num_t)s_tx_pin, bit ? 1 : 0); 
         esp_rom_delay_us(BIT_DELAY_US);
     }
+    
+    // Even Parity Bit
     int parity = (ones % 2 == 0) ? 0 : 1;
-    gpio_set_level((gpio_num_t)s_tx_pin, parity ? 0 : 1); 
+    gpio_set_level((gpio_num_t)s_tx_pin, parity ? 1 : 0); 
     esp_rom_delay_us(BIT_DELAY_US);
-    gpio_set_level((gpio_num_t)s_tx_pin, 0);
+    
+    // Stop Bit / Return to Idle (Standard UART: HIGH)
+    gpio_set_level((gpio_num_t)s_tx_pin, 1);
+    
     taskEXIT_CRITICAL(&s_spinlock);
     esp_rom_delay_us(BIT_DELAY_US * 2);
 }
@@ -38,18 +47,27 @@ static void sw_write_byte(uint8_t byte) {
 static int sw_read_byte(uint32_t timeout_ms) {
     int64_t start = esp_timer_get_time();
     int64_t timeout_us = timeout_ms * 1000;
-    while (gpio_get_level((gpio_num_t)s_rx_pin) == 0) {
+    
+    // Wait for Start Bit (Transition from 1 to 0)
+    while (gpio_get_level((gpio_num_t)s_rx_pin) == 1) {
         if (esp_timer_get_time() - start > timeout_us) return -1;
     }
+    
+    // Half-bit delay to sample in the middle of the start bit
     esp_rom_delay_us(BIT_DELAY_US / 2);
-    if (gpio_get_level((gpio_num_t)s_rx_pin) == 0) return -1;
+    if (gpio_get_level((gpio_num_t)s_rx_pin) == 1) return -1; // False start
+    
     esp_rom_delay_us(BIT_DELAY_US);
+    
     uint8_t byte = 0;
     for (int i = 0; i < 8; i++) {
         int level = gpio_get_level((gpio_num_t)s_rx_pin);
-        if (level == 0) byte |= (1 << i); 
+        // Set bit if line is HIGH
+        if (level != 0) byte |= (1 << i); 
         esp_rom_delay_us(BIT_DELAY_US);
     }
+    
+    // Wait out the parity and stop bits
     esp_rom_delay_us(BIT_DELAY_US * 2); 
     return byte;
 }
@@ -69,17 +87,22 @@ DaikinS21::DaikinS21() {
 esp_err_t DaikinS21::Init(int tx_pin, int rx_pin) {
     s_tx_pin = tx_pin;
     s_rx_pin = rx_pin;
+    
     gpio_config_t tx_conf = {};
     tx_conf.pin_bit_mask = (1ULL << tx_pin);
     tx_conf.mode = GPIO_MODE_OUTPUT;
     tx_conf.pull_up_en = GPIO_PULLUP_DISABLE;
     ESP_ERROR_CHECK(gpio_config(&tx_conf));
-    gpio_set_level((gpio_num_t)tx_pin, 0); 
+    
+    // Set Idle State to HIGH (Standard UART)
+    gpio_set_level((gpio_num_t)tx_pin, 1); 
+    
     gpio_config_t rx_conf = {};
     rx_conf.pin_bit_mask = (1ULL << rx_pin);
     rx_conf.mode = GPIO_MODE_INPUT;
     rx_conf.pull_up_en = GPIO_PULLUP_ENABLE;
     ESP_ERROR_CHECK(gpio_config(&rx_conf));
+    
     vTaskDelay(pdMS_TO_TICKS(2000)); 
     return ESP_OK;
 }
