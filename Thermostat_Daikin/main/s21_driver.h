@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "esp_err.h"
+#include <freertos/FreeRTOS.h>
 #include "daikin_s21.h"
 
 // Represents the state of the AC
@@ -45,14 +46,20 @@ public:
     // Register a callback to update Matter attributes when AC changes
     void SetStateCallback(s21_state_change_cb_t cb);
 
-    // Get current known state
-    ac_state_t GetState() const { return m_state; }
+    // Commanded state while a control change is pending, otherwise last state read from the unit
+    ac_state_t GetState() const;
 
 private:
     ac_state_t m_state;
     bool m_dirty;
     bool m_powerful_dirty;
+    // G1 status replies lag a D1 write by up to ~11 s (mode changes); until this time,
+    // a non-matching G1 is stale and must not overwrite the commanded state.
+    int64_t m_hold_until_us;
+    mutable portMUX_TYPE m_lock;
     s21_state_change_cb_t m_callback;
+
+    void MarkDirtyLocked();
 
     // Internal helpers
     esp_err_t SendPacket(uint8_t cmd1, uint8_t cmd2, uint8_t *payload, int len);

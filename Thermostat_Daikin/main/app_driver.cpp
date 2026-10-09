@@ -82,6 +82,10 @@ int16_t g_current_temp_int = 2100;
 #define S21_RX_PIN 17
 #define BUTTON_GPIO_PIN 23
 
+// 18 C is the S21 encoding base (AC_MIN_TEMP_VALUE '@'); bytes below it are untested on these units.
+#define S21_TARGET_MIN_C 18.0f
+#define S21_TARGET_MAX_C 32.0f
+
 #define FLOAT_TO_MATTER(x) ((int16_t)((x) * 100.0f))
 #define MATTER_TO_FLOAT(x) ((float)(x) / 100.0f)
 
@@ -199,10 +203,20 @@ static esp_err_t app_driver_thermostat_set_value(esp_matter_attr_val_t *val, uin
     }
     else if (attribute_id == Thermostat::Attributes::OccupiedCoolingSetpoint::Id ||
              attribute_id == Thermostat::Attributes::OccupiedHeatingSetpoint::Id) {
-        if (current.power) {
-            s21.SetTemp(MATTER_TO_FLOAT(val->val.i16));
-        } else {
+        // The unit has one target temperature; only the setpoint for the active mode may drive it,
+        // otherwise a controller writing both (e.g. heat 13 C + cool 18 C while cooling) sets the wrong one.
+        bool is_heating_sp = attribute_id == Thermostat::Attributes::OccupiedHeatingSetpoint::Id;
+        bool mode_is_heat = current.mode == FAIKIN_MODE_HEAT;
+        bool applies = current.mode == FAIKIN_MODE_AUTO || is_heating_sp == mode_is_heat;
+        if (!current.power) {
             ESP_LOGI(TAG, "Ignored SetTemp because device is OFF");
+        } else if (!applies) {
+            ESP_LOGI(TAG, "Ignored %s setpoint in mode %u", is_heating_sp ? "heating" : "cooling", current.mode);
+        } else {
+            float t = MATTER_TO_FLOAT(val->val.i16);
+            if (t < S21_TARGET_MIN_C) t = S21_TARGET_MIN_C;
+            if (t > S21_TARGET_MAX_C) t = S21_TARGET_MAX_C;
+            s21.SetTemp(t);
         }
     }
     return ESP_OK;
