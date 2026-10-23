@@ -185,6 +185,15 @@ static void s21_state_change_callback(const ac_state_t *state)
     }
 }
 
+// OnOff and SystemMode describe one state: SystemMode is Off exactly when the unit is off, and turning
+// the unit on resumes the last mode. A write to one attribute only stores that attribute, so after
+// every power or mode write, report both from the commanded state (runs after the write completes).
+static void report_commanded_state()
+{
+    ac_state_t state = s21.GetState();
+    s21_state_change_callback(&state);
+}
+
 static esp_err_t app_driver_thermostat_set_value(esp_matter_attr_val_t *val, uint32_t attribute_id)
 {
     ac_state_t current = s21.GetState();
@@ -201,6 +210,7 @@ static esp_err_t app_driver_thermostat_set_value(esp_matter_attr_val_t *val, uin
             else if (mode == 3) s21.SetMode(FAIKIN_MODE_COOL);
             else if (mode == 4) s21.SetMode(FAIKIN_MODE_HEAT);
         }
+        report_commanded_state();
     }
     else if (attribute_id == Thermostat::Attributes::OccupiedCoolingSetpoint::Id ||
              attribute_id == Thermostat::Attributes::OccupiedHeatingSetpoint::Id) {
@@ -228,6 +238,7 @@ static esp_err_t app_driver_on_off_set_value(esp_matter_attr_val_t *val, uint32_
     if (attribute_id == OnOff::Attributes::OnOff::Id) {
         ESP_LOGI(TAG, "Setting Power to: %d", val->val.b);
         s21.SetPower(val->val.b);
+        report_commanded_state();
     }
     return ESP_OK;
 }
