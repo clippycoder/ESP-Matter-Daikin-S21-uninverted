@@ -25,7 +25,9 @@ using namespace esp_matter;
 
 static const char *TAG = "app_driver";
 extern uint16_t ac_endpoint_id;
-extern uint16_t powerful_endpoint_id;
+
+// FanControl WindSetting/WindSupport bit 1 = NaturalWind, used as the Daikin Powerful flag.
+#define WIND_NATURAL_BIT 0x02
 static DaikinS21 s21;
 
 static uint8_t s21_fan_to_matter(uint8_t s21_fan)
@@ -166,10 +168,8 @@ static void AppDriverUpdateTask(intptr_t context)
     val = esp_matter_uint8(pct);
     esp_matter::attribute::report(ac_endpoint_id, FanControl::Id, FanControl::Attributes::PercentCurrent::Id, &val);
 
-    if (powerful_endpoint_id != 0) {
-        val = esp_matter_bool(data->state.powerful);
-        esp_matter::attribute::report(powerful_endpoint_id, OnOff::Id, OnOff::Attributes::OnOff::Id, &val);
-    }
+    val = esp_matter_bitmap8(data->state.powerful ? WIND_NATURAL_BIT : 0);
+    esp_matter::attribute::report(ac_endpoint_id, FanControl::Id, FanControl::Attributes::WindSetting::Id, &val);
 
     free(data);
 }
@@ -246,19 +246,17 @@ static esp_err_t app_driver_fan_set_value(esp_matter_attr_val_t *val, uint32_t a
         ESP_LOGI(TAG, "PercentSetting write %u → s21 %u", val->val.u8, s21_fan);
         s21.SetFan(s21_fan);
     }
+    else if (attribute_id == FanControl::Attributes::WindSetting::Id) {
+        bool powerful = (val->val.u8 & WIND_NATURAL_BIT) != 0;
+        ESP_LOGI(TAG, "WindSetting write 0x%02x → powerful %d", val->val.u8, powerful);
+        s21.SetPowerful(powerful);
+    }
     return ESP_OK;
 }
 
 esp_err_t app_driver_attribute_update(app_driver_handle_t driver_handle, uint16_t endpoint_id, uint32_t cluster_id,
                                       uint32_t attribute_id, esp_matter_attr_val_t *val)
 {
-    if (endpoint_id == powerful_endpoint_id && cluster_id == OnOff::Id) {
-        if (attribute_id == OnOff::Attributes::OnOff::Id) {
-            ESP_LOGI(TAG, "Setting Powerful Mode to: %d", val->val.b);
-            s21.SetPowerful(val->val.b);
-        }
-        return ESP_OK;
-    }
     if (endpoint_id != ac_endpoint_id) {
         return ESP_OK;
     }

@@ -13,7 +13,7 @@ Open source Matter firmware for Daikin split air conditioners with an S21 port. 
 
 > This release is the **Room Air Conditioner variant** — Matter device type `0x0072`, with **OnOff, Thermostat, Fan Control, and Temperature Measurement** clusters bundled into a single tile. Power, mode (Heat / Cool / Auto / Off), setpoint, current temperature, and fan speed all surface as native Matter attributes.
 >
-> **Powerful mode** is exposed on a second endpoint as an OnOff plug-in unit. In Apple Home and Google Home it appears as an "Outlet" tile next to the AC tile — rename it to "Powerful" in your home app.
+> **Powerful mode** is exposed as the Fan Control cluster's **Natural wind** setting (`WindSetting` bit 1). In SmartThings it appears as the AC's wind mode control: "Natural wind" turns Powerful on. Earlier versions used a second OnOff endpoint, which SmartThings' stock Matter Thermostat driver folds into the AC's main power switch, so the app showed the AC as off while it ran.
 
 > ⚠️ Uses ESP-Matter SDK test credentials (vendor `0xFFF1`, not VID/PID-certified). Functional for personal use; not suitable for resale as a certified Matter product.
 
@@ -58,7 +58,7 @@ Open source Matter firmware for Daikin split air conditioners with an S21 port. 
 - ✅ Native Room Air Conditioner tile (single accessory in your home app)
 - ✅ Power, Mode (Heat/Cool/Auto/Off), Setpoint, Current Temperature
 - ✅ Fan speed (Low/Med/High/Auto + percent slider)
-- ✅ Powerful mode as a separate switchable endpoint
+- ✅ Powerful mode as the Fan Control "Natural wind" setting
 - ✅ Two-way state sync — adjusting on the Daikin remote updates your home app within ~2 seconds
 - ✅ Factory reset via long press on the onboard button
 
@@ -213,7 +213,6 @@ In the `idf.py monitor` output, after the boot banner you should see:
 
 ```
 I (xxxx) app_main: Room Air Conditioner created with endpoint_id 1
-I (xxxx) app_main: Powerful plug-in unit created with endpoint_id 2
 I (xxxx) app_main: Commissioning window opened
 ```
 
@@ -232,7 +231,7 @@ This confirms Matter is initialized and the device is advertising for commission
 2. Tap **+** → **Add Accessory**.
 3. Tap **More Options** to enter the setup code manually.
 4. Press **Add Anyway** when prompted (this is expected — see [Matter and Thread Certification](#matter-and-thread-certification)).
-5. Name the device and place it in a room. You'll see two tiles: the AC and the "Outlet" (Powerful). Rename the Outlet to "Powerful" or similar.
+5. Name the device and place it in a room. Powerful mode is the AC's wind setting ("Natural wind").
 
 ```
 Setup code: 3497-011-2332

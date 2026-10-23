@@ -77,6 +77,7 @@ DaikinS21::DaikinS21() {
     m_dirty = false;
     m_powerful_dirty = false;
     m_hold_until_us = 0;
+    m_powerful_hold_until_us = 0;
     portMUX_INITIALIZE(&m_lock);
     m_callback = nullptr;
     m_state.power = false;
@@ -216,7 +217,9 @@ void DaikinS21::ParseSettingsG6(uint8_t *payload, int len) {
     bool pow = (payload[0] & S21_FLAG_POWERFUL) != 0;
 
     taskENTER_CRITICAL(&m_lock);
-    bool changed = !m_powerful_dirty && m_state.powerful != pow;
+    bool holding = m_powerful_dirty || esp_timer_get_time() < m_powerful_hold_until_us;
+    if (holding && m_state.powerful == pow && !m_powerful_dirty) m_powerful_hold_until_us = 0;
+    bool changed = !holding && m_state.powerful != pow;
     if (changed) m_state.powerful = pow;
     ac_state_t snapshot = m_state;
     taskEXIT_CRITICAL(&m_lock);
@@ -245,11 +248,11 @@ void DaikinS21::SendControlD6() {
     payload[2] = S21_D6_BASE_BYTE;
     payload[3] = S21_D6_BASE_BYTE;
 
-    if (SendPacket('D', '6', payload, 4) != ESP_OK) {
-        taskENTER_CRITICAL(&m_lock);
-        m_powerful_dirty = true;
-        taskEXIT_CRITICAL(&m_lock);
-    }
+    esp_err_t err = SendPacket('D', '6', payload, 4);
+    taskENTER_CRITICAL(&m_lock);
+    if (err != ESP_OK) m_powerful_dirty = true;
+    m_powerful_hold_until_us = esp_timer_get_time() + CONTROL_HOLD_US;
+    taskEXIT_CRITICAL(&m_lock);
 }
 
 void DaikinS21::ParseSensorsSH(uint8_t *payload, int len) {
@@ -372,6 +375,10 @@ void DaikinS21::SetFan(uint8_t fan) {
 void DaikinS21::SetStateCallback(s21_state_change_cb_t cb) { m_callback = cb; }
 void DaikinS21::SetPowerful(bool on) {
     taskENTER_CRITICAL(&m_lock);
-    if (m_state.powerful != on) { m_state.powerful = on; m_powerful_dirty = true; }
+    if (m_state.powerful != on) {
+        m_state.powerful = on;
+        m_powerful_dirty = true;
+        m_powerful_hold_until_us = esp_timer_get_time() + CONTROL_HOLD_US;
+    }
     taskEXIT_CRITICAL(&m_lock);
 }

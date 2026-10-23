@@ -41,7 +41,6 @@ using namespace chip::DeviceLayer;
 
 static const char *TAG = "app_main";
 uint16_t ac_endpoint_id = 0;
-uint16_t powerful_endpoint_id = 0;
 
 // Extern the global variable from app_driver.cpp
 extern int16_t g_current_temp_int; 
@@ -232,16 +231,17 @@ extern "C" void app_main()
     ABORT_APP_ON_FAILURE(fan_cluster != nullptr, ESP_LOGE(TAG, "Failed to create fan control cluster"));
     esp_matter::cluster::fan_control::feature::fan_auto::add(fan_cluster);
 
+    // Daikin "Powerful" is exposed as Fan Control wind: NaturalWind (bit 1) = Powerful.
+    // SmartThings' stock Matter Thermostat driver maps WindSupport/WindSetting to its windMode control,
+    // and it folds any extra OnOff endpoint into the main power switch, so no second endpoint is created.
+    esp_matter::cluster::fan_control::feature::wind::config_t wind_config;
+    wind_config.wind_support = 0x02;
+    wind_config.wind_setting = 0;
+    esp_matter::cluster::fan_control::feature::wind::add(fan_cluster, &wind_config);
+
     esp_matter::cluster::temperature_measurement::config_t temp_config;
     esp_matter::cluster_t *temp_cluster = esp_matter::cluster::temperature_measurement::create(endpoint, &temp_config, CLUSTER_FLAG_SERVER);
     ABORT_APP_ON_FAILURE(temp_cluster != nullptr, ESP_LOGE(TAG, "Failed to create temperature measurement cluster"));
-
-    esp_matter::endpoint::on_off_plug_in_unit::config_t powerful_config;
-    powerful_config.on_off.on_off = false;
-    endpoint_t *powerful_ep = esp_matter::endpoint::on_off_plug_in_unit::create(node, &powerful_config, ENDPOINT_FLAG_NONE, thermostat_handle);
-    ABORT_APP_ON_FAILURE(powerful_ep != nullptr, ESP_LOGE(TAG, "Failed to create powerful endpoint"));
-    powerful_endpoint_id = endpoint::get_id(powerful_ep);
-    ESP_LOGI(TAG, "Powerful plug-in unit created with endpoint_id %u", powerful_endpoint_id);
 
     {
         ESP_LOGI(TAG, "=== Endpoint %u clusters ===", ac_endpoint_id);

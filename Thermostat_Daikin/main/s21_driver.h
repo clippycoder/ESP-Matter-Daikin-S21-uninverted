@@ -56,6 +56,7 @@ private:
     // G1 status replies lag a D1 write by up to ~11 s (mode changes); until this time,
     // a non-matching G1 is stale and must not overwrite the commanded state.
     int64_t m_hold_until_us;
+    int64_t m_powerful_hold_until_us;
     mutable portMUX_TYPE m_lock;
     s21_state_change_cb_t m_callback;
 
