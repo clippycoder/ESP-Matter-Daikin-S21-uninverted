@@ -151,7 +151,7 @@ A long press on the GPIO23 button triggers a Matter factory reset (clears all fa
 
 The XIAO ESP32-C6 has an onboard ceramic antenna and a u.FL connector, selected by an RF switch: GPIO3 low enables the switch, GPIO14 low selects the onboard antenna and high selects u.FL. The firmware applies whichever antenna is stored and **never falls back on its own**, so with u.FL selected and no antenna attached the Thread link will degrade or drop.
 
-- **Default:** onboard. Change it for new builds with `idf.py menuconfig` → *Daikin AC* → *Default to the external u.FL antenna*.
+- **Default:** this repo's `sdkconfig.defaults` selects the external u.FL antenna, so attach one before flashing. The Kconfig default itself is onboard. Change it for new builds with `idf.py menuconfig` → *Daikin AC* → *Default to the external u.FL antenna*, or remove the line from `sdkconfig.defaults`.
 - **At runtime:** click the GPIO23 button 5 times to switch to the other antenna. The choice is stored in NVS (namespace `daikin_ac`, key `ant_ext`) and survives reboots and reflashes that don't erase NVS. A Matter factory reset only clears Matter's own NVS namespaces, so it should leave the antenna choice alone (not tested). Click 5 times again to switch back.
 - The boot log prints the selection (`antenna: onboard ceramic` or `external u.FL`). Switching while the radio is running has not been tested with Thread.
 
