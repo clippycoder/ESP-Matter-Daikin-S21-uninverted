@@ -580,6 +580,12 @@ CONFIG_PARTITION_TABLE_MD5=y
 # end of Partition Table
 
 #
+# Daikin AC
+#
+# CONFIG_DAIKIN_ANTENNA_EXTERNAL_DEFAULT is not set
+# end of Daikin AC
+
+#
 # Compiler options
 #
 CONFIG_COMPILER_OPTIMIZATION_DEBUG=y

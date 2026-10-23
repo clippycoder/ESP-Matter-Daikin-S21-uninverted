@@ -16,6 +16,7 @@
 
 #include <app_priv.h>
 #include <app_reset.h>
+#include "antenna.h"
 #if CHIP_DEVICE_CONFIG_ENABLE_THREAD
 #include <platform/ESP32/OpenthreadLauncher.h>
 #endif
@@ -183,22 +184,17 @@ static void ensure_attribute(esp_matter::cluster_t *cluster, uint32_t attribute_
 
 extern "C" void app_main()
 {
+    esp_err_t err = ESP_OK;
+    nvs_flash_init();
+
     /* Seeed XIAO ESP32-C6 RF antenna switch. GPIO3 enables the switch (active
        low); GPIO14 selects the antenna (low = onboard ceramic, high = external
        u.FL). Left floating the switch can sit disabled or routed to the
        unpopulated u.FL port, which kills the transmit path: the radio still
        receives, but nothing it sends reaches the Thread mesh or a BLE scanner.
-       Must be set before the radio starts. */
-    gpio_reset_pin(GPIO_NUM_3);
-    gpio_set_direction(GPIO_NUM_3, GPIO_MODE_OUTPUT);
-    gpio_set_level(GPIO_NUM_3, 0);
-    gpio_reset_pin(GPIO_NUM_14);
-    gpio_set_direction(GPIO_NUM_14, GPIO_MODE_OUTPUT);
-    gpio_set_level(GPIO_NUM_14, 0);
-    ESP_LOGI(TAG, "RF switch: GPIO3=0 (enable), GPIO14=0 (onboard antenna)");
-
-    esp_err_t err = ESP_OK;
-    nvs_flash_init();
+       Must run after NVS init (the choice is stored there) and before the radio
+       starts in esp_matter::start(). */
+    antenna_init();
 
     app_driver_handle_t thermostat_handle = app_driver_thermostat_init();
     

@@ -18,6 +18,7 @@
 #include <app/server/CommissioningWindowManager.h>
 
 #include "s21_driver.h"
+#include "antenna.h"
 
 using namespace chip::app::Clusters;
 using namespace chip::app::Clusters::Thermostat;
@@ -292,6 +293,12 @@ static void app_driver_button_toggle_cb(void *arg, void *data)
     }
 }
 
+static void app_driver_button_antenna_cb(void *arg, void *data)
+{
+    ESP_LOGI(TAG, "Button: 5 clicks, switching antenna");
+    antenna_toggle();
+}
+
 app_driver_handle_t app_driver_button_init()
 {
     button_config_t btn_cfg = {0};
@@ -300,6 +307,9 @@ app_driver_handle_t app_driver_button_init()
     esp_err_t err = iot_button_new_gpio_device(&btn_cfg, &btn_gpio_cfg, &btn_handle);
     if (err == ESP_OK && btn_handle) {
         iot_button_register_cb(btn_handle, BUTTON_PRESS_DOWN, NULL, app_driver_button_toggle_cb, NULL);
+        button_event_args_t antenna_args = {};
+        antenna_args.multiple_clicks.clicks = 5;
+        iot_button_register_cb(btn_handle, BUTTON_MULTIPLE_CLICK, &antenna_args, app_driver_button_antenna_cb, NULL);
         return (app_driver_handle_t)btn_handle;
     }
     return NULL;

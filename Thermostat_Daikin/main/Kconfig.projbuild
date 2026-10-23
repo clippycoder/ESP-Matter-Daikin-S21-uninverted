@@ -1,0 +1,13 @@
+menu "Daikin AC"
+
+    config DAIKIN_ANTENNA_EXTERNAL_DEFAULT
+        bool "Default to the external u.FL antenna"
+        default n
+        help
+            Antenna used when none has been chosen yet. Off selects the onboard ceramic
+            antenna, on selects the u.FL connector. A choice made with the 5-click button
+            gesture is stored in NVS and takes precedence over this default. There is no
+            automatic fallback: with u.FL selected and no antenna attached the Thread link
+            will degrade or drop.
+
+endmenu
